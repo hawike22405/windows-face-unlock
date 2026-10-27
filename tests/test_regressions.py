@@ -74,5 +74,20 @@ class AuthorizationTests(unittest.TestCase):
             self.assertEqual(revert.call_count, 3)
 
 
+class PresenceMonitorTests(unittest.TestCase):
+    def test_auto_lock_disabled_skips_probe_and_lock(self):
+        from face_service.config import Config
+        from presence_monitor.monitor import PresenceMonitor
+        cfg = Config(auto_lock=False)
+        monitor = PresenceMonitor(cfg)
+        with patch('presence_monitor.monitor.pipe_call') as mock_pipe, \
+             patch('presence_monitor.monitor._lock_workstation') as mock_lock:
+            monitor._tick()
+            mock_pipe.assert_not_called()
+            mock_lock.assert_not_called()
+            snap = monitor.snapshot()
+            self.assertEqual(snap['last_result'], 'disabled')
+
+
 if __name__ == '__main__':
     unittest.main()

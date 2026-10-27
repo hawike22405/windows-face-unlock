@@ -10,6 +10,7 @@ camera_index = 0
 verify_frames = 5               # frames captured per verify
 verify_required = 3             # matches needed out of verify_frames
 
+auto_lock = false               # auto-lock workstation when face is absent
 presence_interval_s = 60        # 1 minute
 presence_absent_strikes = 2     # lock after N consecutive absent ticks
 presence_mode = "recognition"   # "recognition" (DeepFace must match enrolled)

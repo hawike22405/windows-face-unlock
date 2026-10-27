@@ -125,6 +125,8 @@ _EN: dict[str, str] = {
     "field.language": "Interface language",
     "field.language.desc": "The language used for the tray menu, Status and Settings windows. Applied immediately.",
 
+    "field.auto_lock": "Auto-lock when away",
+    "field.auto_lock.desc": "Automatically lock workstation when your face is absent.",
     "field.presence_mode": "Presence mode",
     "field.presence_mode.desc": "'recognition' = DeepFace, must match your enrolled face (stronger, catches walk-away AND strangers). 'detection' = YuNet, any face in frame is enough (lighter, same behaviour as the old AutoFaceLock script).",
 

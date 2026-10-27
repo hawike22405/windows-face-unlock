@@ -44,6 +44,7 @@ class Config:
     persistent_camera: bool = True   # keep VideoCapture open between requests
     verify_frames: int = 5            # số frame cần đạt ngưỡng
     verify_required: int = 2          # trong đó cần ≥ N khớp (giảm từ 3 để nhanh hơn)
+    auto_lock: bool = False           # auto-lock workstation when face is absent
     presence_interval_s: int = 60
     presence_absent_strikes: int = 2  # vắng mặt liên tiếp trước khi lock
     # "recognition" = DeepFace ArcFace must match enrolled face (stronger; walk-away + strangers)

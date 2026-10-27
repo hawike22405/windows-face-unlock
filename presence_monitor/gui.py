@@ -169,6 +169,7 @@ class StatusWindow:
 # (field_name, widget_kind, extras) — the label + .desc keys come from i18n.
 SETTINGS_FIELDS: list[tuple[str, str, object]] = [
     ("language",                  "combo_lang", None),
+    ("auto_lock",                 "bool",       None),
     ("presence_mode",             "combo",      PRESENCE_MODES),
     ("presence_interval_s",       "int",        (5, 3600)),
     ("presence_absent_strikes",   "int",        (1, 20)),

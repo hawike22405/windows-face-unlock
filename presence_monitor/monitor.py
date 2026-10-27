@@ -137,6 +137,12 @@ class PresenceMonitor:
             )
 
     def _tick(self) -> None:
+        # 0. Skip if auto-lock feature is disabled in config
+        if not getattr(self.cfg, "auto_lock", False):
+            self._strikes = 0
+            self._set_last("disabled", "auto_lock disabled in config")
+            return
+
         # 1. Skip if paused from the tray
         if self._paused.is_set():
             self._set_last("skipped", "paused")
