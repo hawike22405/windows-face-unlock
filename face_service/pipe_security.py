@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ctypes
+from contextlib import contextmanager
 from ctypes import wintypes
 import ntpath
 
@@ -17,8 +18,16 @@ PIPE_REJECT_REMOTE_CLIENTS = 0x8
 FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000
 
 
+@contextmanager
+def _closing_handle(handle):
+    try:
+        yield handle
+    finally:
+        handle.Close()
+
+
 def current_user_sid() -> str:
-    with win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY) as token:
+    with _closing_handle(win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)) as token:
         return win32security.ConvertSidToStringSid(
             win32security.GetTokenInformation(token, win32security.TokenUser)[0])
 
@@ -54,7 +63,7 @@ def _process_image(pid: int) -> str:
     query.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
                       ctypes.POINTER(wintypes.DWORD)]
     query.restype = wintypes.BOOL
-    with win32api.OpenProcess(0x1000, False, pid) as process:
+    with _closing_handle(win32api.OpenProcess(0x1000, False, pid)) as process:
         path = ctypes.create_unicode_buffer(32768)
         size = wintypes.DWORD(len(path))
         if not query(int(process), 0, path, ctypes.byref(size)):
@@ -73,7 +82,7 @@ def client_role(handle) -> str | None:
         owner = current_user_sid()
         win32pipe.ImpersonateNamedPipeClient(handle)
         try:
-            with win32security.OpenThreadToken(win32api.GetCurrentThread(), win32con.TOKEN_QUERY, True) as token:
+            with _closing_handle(win32security.OpenThreadToken(win32api.GetCurrentThread(), win32con.TOKEN_QUERY, True)) as token:
                 sid = win32security.ConvertSidToStringSid(
                     win32security.GetTokenInformation(token, win32security.TokenUser)[0])
                 session = win32security.GetTokenInformation(token, win32security.TokenSessionId)
@@ -85,7 +94,7 @@ def client_role(handle) -> str | None:
             return None
         # SYSTEM alone is insufficient: require the real Windows LogonUI in
         # the same interactive session as this per-user service.
-        with win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY) as token:
+        with _closing_handle(win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)) as token:
             own_session = win32security.GetTokenInformation(token, win32security.TokenSessionId)
         expected = ntpath.join(win32api.GetSystemDirectory(), "LogonUI.exe")
         if session == own_session and ntpath.normcase(_process_image(_client_process_id(handle))) == ntpath.normcase(expected):
