@@ -36,7 +36,8 @@ def build_pipe_security():
     owner = win32security.ConvertStringSidToSid(current_user_sid())
     system = win32security.ConvertStringSidToSid(SYSTEM_SID)
     acl = win32security.ACL()
-    acl.AddAccessAllowedAce(win32security.ACL_REVISION, win32con.FILE_ALL_ACCESS, owner)
+    acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x001F01FF  # FILE_ALL_ACCESS
+                            , owner)
     acl.AddAccessAllowedAce(win32security.ACL_REVISION, PIPE_CLIENT_ACCESS, system)
     sd = win32security.SECURITY_DESCRIPTOR()
     sd.SetSecurityDescriptorDacl(True, acl, False)

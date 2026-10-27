@@ -1,6 +1,7 @@
 """Real Windows pipe tests. Never read stored passwords or use a camera."""
 import os
 import threading
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -10,7 +11,8 @@ class WindowsPipeTests(unittest.TestCase):
     def test_current_user_identity_and_remote_rejection_flag(self):
         import win32file
         import win32pipe
-        from face_service.pipe_security import build_pipe_security, client_role, PIPE_REJECT_REMOTE_CLIENTS
+        from face_service.pipe_security import (build_pipe_security, client_role,
+            PIPE_REJECT_REMOTE_CLIENTS, _client_process_id, _process_image)
         name = rf'\\.\pipe\FaceUnlock-Test-{os.getpid()}'
         pipe = win32pipe.CreateNamedPipe(name, win32pipe.PIPE_ACCESS_DUPLEX,
             win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | PIPE_REJECT_REMOTE_CLIENTS,
@@ -24,6 +26,9 @@ class WindowsPipeTests(unittest.TestCase):
                     if exc.winerror != 535:
                         raise
                 win32file.ReadFile(pipe, 4096)
+                self.assertEqual(_client_process_id(pipe), os.getpid())
+                self.assertEqual(os.path.normcase(_process_image(os.getpid())),
+                                 os.path.normcase(sys.executable))
                 result.append(client_role(pipe))
                 win32file.WriteFile(pipe, b'ok')
             except Exception as exc:
