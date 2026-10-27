@@ -32,8 +32,8 @@ class WindowsPipeTests(unittest.TestCase):
                         raise
                 request = json.loads(win32file.ReadFile(pipe, 4096)[1])
                 self.assertEqual(_client_process_id(pipe), os.getpid())
-                self.assertEqual(os.path.normcase(_process_image(os.getpid())),
-                                 os.path.normcase(sys.executable))
+                expected_execs = [os.path.normcase(sys.executable), os.path.normcase(getattr(sys, '_base_executable', sys.executable))]
+                self.assertIn(os.path.normcase(_process_image(os.getpid())), expected_execs)
                 role = client_role(pipe)
                 result.append(role)
                 with patch('face_service.service.load_password') as password:

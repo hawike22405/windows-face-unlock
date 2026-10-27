@@ -34,3 +34,4 @@ weights/
 # Local build artifacts (release binaries are produced by .github/workflows/release.yml)
 dist/
 installer_output/
+graphify-out/

@@ -16,7 +16,7 @@ static HRESULT AllocStr(PCWSTR src, PWSTR* dst) {
 
 FaceCredential::FaceCredential()
     : m_cRef(1), m_cpus(CPUS_INVALID), m_pEvents(nullptr),
-      m_label(L"Face Unlock"), m_status(L"Look at the camera") {}
+      m_label(L"Face Unlock"), m_status(L"Scanning face..."), m_autoScanOnce(true) {}
 
 FaceCredential::~FaceCredential() {}
 
@@ -50,12 +50,14 @@ IFACEMETHODIMP FaceCredential::UnAdvise() {
 }
 
 IFACEMETHODIMP FaceCredential::SetSelected(BOOL* pbAutoLogon) {
-    // Do NOT auto-trigger verification when the tile becomes selected.
-    // The user must press the submit arrow to start a scan — this prevents
-    // continuous re-scanning whenever the lock screen redraws or the tile
-    // is re-selected, and gives the user explicit control over each attempt.
-    *pbAutoLogon = FALSE;
-    m_status = L"Press the arrow to scan your face";
+    if (m_autoScanOnce) {
+        *pbAutoLogon = TRUE;
+        m_autoScanOnce = false; // Scan automatically only once on initial display
+        m_status = L"Scanning face...";
+    } else {
+        *pbAutoLogon = FALSE;
+        m_status = L"Press Enter to scan your face";
+    }
     if (m_pEvents) m_pEvents->SetFieldString(this, FIELD_STATUS, m_status.c_str());
     return S_OK;
 }
@@ -119,10 +121,18 @@ IFACEMETHODIMP FaceCredential::GetSerialization(
     }
 
     if (!ok) {
-        m_status = L"Face not recognised. Use password tile instead.";
+        if (err == "pipe-unavailable") {
+            m_status = L"Face Service not responding. Ensure service is running.";
+        } else if (err == "no-credentials") {
+            m_status = L"No password stored. Run set_password.py in tools.";
+        } else if (err == "unauthorized") {
+            m_status = L"Face Service denied unlock request (unauthorized).";
+        } else {
+            m_status = L"Face not recognised. Press Enter to retry or use password.";
+        }
         if (m_pEvents) m_pEvents->SetFieldString(this, FIELD_STATUS, m_status.c_str());
         *pcpsiOptionalStatusIcon = CPSI_ERROR;
-        AllocStr(L"Face Unlock failed - use password tile", ppwszOptionalStatusText);
+        AllocStr(m_status.c_str(), ppwszOptionalStatusText);
         return S_FALSE;  // LogonUI treats as non-fatal; user picks another tile
     }
 

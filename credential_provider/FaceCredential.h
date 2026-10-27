@@ -49,6 +49,7 @@ private:
     ICredentialProviderCredentialEvents* m_pEvents;
     std::wstring m_label;
     std::wstring m_status;
+    bool m_autoScanOnce;
 };
 
 }  // namespace FaceUnlock

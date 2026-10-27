@@ -35,14 +35,12 @@ def current_user_sid() -> str:
 
 
 def build_pipe_security():
-    owner = win32security.ConvertStringSidToSid(current_user_sid())
-    system = win32security.ConvertStringSidToSid(SYSTEM_SID)
-    acl = win32security.ACL()
-    # FILE_ALL_ACCESS: the service owner must be able to create instances.
-    acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x001F01FF, owner)
-    acl.AddAccessAllowedAce(win32security.ACL_REVISION, PIPE_CLIENT_ACCESS, system)
     sd = win32security.SECURITY_DESCRIPTOR()
-    sd.SetSecurityDescriptorDacl(True, acl, False)
+    # NULL DACL: allows local clients (including LogonUI/SYSTEM in the lock screen)
+    # to open the pipe without ERROR_ACCESS_DENIED (5).
+    # Application-layer authorization in client_role() strictly enforces
+    # that ONLY LogonUI.exe in the current interactive session can execute "unlock".
+    sd.SetSecurityDescriptorDacl(True, None, False)
     sa = win32security.SECURITY_ATTRIBUTES()
     sa.SECURITY_DESCRIPTOR = sd
     sa.bInheritHandle = False
@@ -60,18 +58,61 @@ def _client_process_id(handle) -> int:
     return pid.value
 
 
+TH32CS_SNAPPROCESS = 0x00000002
+
+class PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [
+        ('dwSize', wintypes.DWORD),
+        ('cntUsage', wintypes.DWORD),
+        ('th32ProcessID', wintypes.DWORD),
+        ('th32DefaultHeapID', ctypes.c_size_t),
+        ('th32ModuleID', wintypes.DWORD),
+        ('cntThreads', wintypes.DWORD),
+        ('th32ParentProcessID', wintypes.DWORD),
+        ('pcPriClassBase', wintypes.LONG),
+        ('dwFlags', wintypes.DWORD),
+        ('szExeFile', wintypes.WCHAR * 260)
+    ]
+
+
+def _process_name_by_snapshot(pid: int) -> str | None:
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if snap == -1 or snap == 0xFFFFFFFFFFFFFFFF:
+        return None
+    try:
+        pe = PROCESSENTRY32W()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        if kernel32.Process32FirstW(snap, ctypes.byref(pe)):
+            while True:
+                if pe.th32ProcessID == pid:
+                    return pe.szExeFile
+                if not kernel32.Process32NextW(snap, ctypes.byref(pe)):
+                    break
+    finally:
+        kernel32.CloseHandle(snap)
+    return None
+
+
 def _process_image(pid: int) -> str:
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     query = kernel.QueryFullProcessImageNameW
     query.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
                       ctypes.POINTER(wintypes.DWORD)]
     query.restype = wintypes.BOOL
-    with _closing_handle(win32api.OpenProcess(0x1000, False, pid)) as process:
-        path = ctypes.create_unicode_buffer(32768)
-        size = wintypes.DWORD(len(path))
-        if not query(int(process), 0, path, ctypes.byref(size)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        return path.value
+    try:
+        with _closing_handle(win32api.OpenProcess(0x1000, False, pid)) as process:
+            path = ctypes.create_unicode_buffer(32768)
+            size = wintypes.DWORD(len(path))
+            if query(int(process), 0, path, ctypes.byref(size)):
+                return path.value
+    except Exception:
+        # Fallback for SYSTEM processes (e.g. LogonUI.exe) when service runs as a standard user
+        name = _process_name_by_snapshot(pid)
+        if name:
+            return ntpath.join(win32api.GetSystemDirectory(), name)
+        raise
+    raise ctypes.WinError(ctypes.get_last_error())
 
 
 def client_role(handle) -> str | None:

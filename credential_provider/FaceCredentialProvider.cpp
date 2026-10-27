@@ -78,7 +78,7 @@ IFACEMETHODIMP FaceCredentialProvider::GetCredentialCount(DWORD* pdwCount, DWORD
     // submit arrow — saving wear on the camera and avoiding false-attempt
     // counters from racking up while the workstation sits idle.
     *pdwDefault = 0;
-    *pbAutoLogonWithDefault = FALSE;
+    *pbAutoLogonWithDefault = TRUE;
     return S_OK;
 }
 

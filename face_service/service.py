@@ -303,7 +303,14 @@ class FaceService:
             except pywintypes.error as exc:
                 if exc.winerror != 535:  # ERROR_PIPE_CONNECTED is a successful race
                     raise
-            _hr, data = win32file.ReadFile(handle, 65536)
+            try:
+                _hr, data = win32file.ReadFile(handle, 65536)
+            except pywintypes.error as exc:
+                if exc.winerror in (109, 232):  # ERROR_BROKEN_PIPE / ERROR_NO_DATA
+                    return
+                raise
+            if not data:
+                return
             req = json.loads(data.decode("utf-8"))
             if not isinstance(req, dict):
                 return
@@ -314,7 +321,12 @@ class FaceService:
             except Exception as e:
                 log.exception("handler error")
                 resp = {"ok": False, "reason": f"exception: {e}"}
-            win32file.WriteFile(handle, (json.dumps(resp) + "\n").encode("utf-8"))
+            try:
+                win32file.WriteFile(handle, (json.dumps(resp) + "\n").encode("utf-8"))
+            except pywintypes.error as exc:
+                if exc.winerror in (109, 232):
+                    return
+                raise
             try:
                 win32file.FlushFileBuffers(handle)
             except pywintypes.error:
