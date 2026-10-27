@@ -1,4 +1,8 @@
 #include "FaceCredential.h"
+#include "resource.h"
+
+EXTERN_C IMAGE_DOS_HEADER __ImageBase;
+
 #include "helpers.h"
 #include "PipeClient.h"
 #include "guid.h"
@@ -82,9 +86,27 @@ IFACEMETHODIMP FaceCredential::GetStringValue(DWORD dwFieldID, PWSTR* ppwsz) {
 }
 
 IFACEMETHODIMP FaceCredential::GetBitmapValue(DWORD dwFieldID, HBITMAP* phbmp) {
-    // Use default logo — custom bitmap omitted in MVP.
     if (dwFieldID != FIELD_TILE_IMAGE) return E_INVALIDARG;
+    if (!phbmp) return E_POINTER;
     *phbmp = nullptr;
+
+    // Load our bundled face tile bitmap
+    HBITMAP hbmp = (HBITMAP)LoadImageW((HINSTANCE)&__ImageBase, MAKEINTRESOURCEW(IDB_TILE_IMAGE),
+                                       IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    if (!hbmp) {
+        // Fallback: load Windows Hello Face icon bitmap from system FaceCredentialProvider.dll
+        HMODULE hSys = LoadLibraryExW(L"FaceCredentialProvider.dll", nullptr, LOAD_LIBRARY_AS_DATAFILE);
+        if (hSys) {
+            hbmp = (HBITMAP)LoadImageW(hSys, MAKEINTRESOURCEW(1001),
+                                       IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+            FreeLibrary(hSys);
+        }
+    }
+
+    if (hbmp) {
+        *phbmp = hbmp;
+        return S_OK;
+    }
     return E_NOTIMPL;
 }
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(FaceCredentialProvider LANGUAGES CXX)
+project(FaceCredentialProvider LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,6 +12,7 @@ add_library(FaceCredentialProvider SHARED
     PipeClient.cpp
     helpers.cpp
     FaceCredentialProvider.def
+    resources.rc
 )
 
 target_compile_definitions(FaceCredentialProvider PRIVATE
@@ -29,6 +30,8 @@ target_link_libraries(FaceCredentialProvider PRIVATE
     shell32
     uuid
     advapi32
+    gdi32
+    user32
 )
 
 set_target_properties(FaceCredentialProvider PROPERTIES

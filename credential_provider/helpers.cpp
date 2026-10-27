@@ -17,7 +17,7 @@ const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_FieldDescriptors[FIELD_COUNT] = {
 
 const FIELD_STATE_PAIR s_FieldStatePairs[FIELD_COUNT] = {
     { CPFS_DISPLAY_IN_BOTH,           CPFIS_NONE },
-    { CPFS_DISPLAY_IN_SELECTED_TILE,  CPFIS_NONE },
+    { CPFS_HIDDEN,                    CPFIS_NONE },     // Hide large text label so face icon is displayed instead
     { CPFS_DISPLAY_IN_SELECTED_TILE,  CPFIS_FOCUSED },  // Focused so pressing Enter triggers submit
     { CPFS_DISPLAY_IN_SELECTED_TILE,  CPFIS_NONE },
 };
