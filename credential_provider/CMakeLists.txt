@@ -25,6 +25,9 @@ target_link_libraries(FaceCredentialProvider PRIVATE
     shlwapi
     ole32
     oleaut32
+    wtsapi32
+    shell32
+    uuid
     advapi32
 )
 

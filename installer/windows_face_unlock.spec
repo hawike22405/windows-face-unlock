@@ -2,12 +2,12 @@
 # single shared dist folder. Run from the repo root:
 #     pyinstaller installer/windows_face_unlock.spec --noconfirm --clean
 #
-# The two entry points share runtime binaries via MERGE so TensorFlow and
-# torch are only laid down once (~250 MB saved).
+# Both executables use one COLLECT directory; duplicate dependencies are
+# deduplicated there without cross-executable MERGE dependency paths.
 
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
-from PyInstaller.building.api import PYZ, EXE, COLLECT, MERGE
+from PyInstaller.building.api import PYZ, EXE, COLLECT
 from PyInstaller.building.build_main import Analysis
 
 REPO_ROOT = Path(SPECPATH).resolve().parent
@@ -92,13 +92,6 @@ tray_analysis = Analysis(
     excludes=EXCLUDES,
     cipher=BLOCK_CIPHER,
     noarchive=False,
-)
-
-# Share Python DLLs + site-packages between the two EXEs to avoid doubling
-# the bundle size.
-MERGE(
-    (service_analysis, "face_service", "face_service"),
-    (tray_analysis, "face_unlock_tray", "face_unlock_tray"),
 )
 
 service_pyz = PYZ(service_analysis.pure, service_analysis.zipped_data, cipher=BLOCK_CIPHER)

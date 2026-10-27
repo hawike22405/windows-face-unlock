@@ -8,7 +8,7 @@
 #define MyAppShortName "WindowsFaceUnlock"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Cao Chi Tam"
-#define MyAppURL "https://github.com/caochitam/windows-face-unlock"
+#define MyAppURL "https://github.com/hawike22405/windows-face-unlock"
 #define MyAppExeName "face_unlock_tray.exe"
 #define MyServiceExe "face_service.exe"
 #define BuildRoot "..\dist\WindowsFaceUnlock"
@@ -25,6 +25,8 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppShortName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+; Pipe server authentication requires this fixed administrator-owned location.
+DisableDirPage=yes
 OutputDir=..\installer_output
 OutputBaseFilename=WindowsFaceUnlock-Setup-{#MyAppVersion}
 SetupIconFile=
@@ -36,7 +38,7 @@ ArchitecturesAllowed=x64
 PrivilegesRequired=admin
 CloseApplications=yes
 RestartApplications=yes
-UsePreviousAppDir=yes
+UsePreviousAppDir=no
 UsePreviousTasks=yes
 
 [Languages]
@@ -59,7 +61,7 @@ Source: "postinstall\register_tasks.ps1"; DestDir: "{app}\postinstall"; Flags: i
 [Dirs]
 ; Writable log/config dir in per-user profile — created on first run anyway,
 ; but we pre-create it so the uninstaller can optionally wipe it.
-Name: "{userappdata}\..\.face-unlock"; Permissions: users-modify
+Name: "{userappdata}\..\.face-unlock"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

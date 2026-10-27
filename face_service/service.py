@@ -48,20 +48,14 @@ def win32api_get_last_error() -> int:
 from .camera import Camera
 from .config import Config, LOG_PATH, PIPE_NAME
 from .credentials import load_password
+from .pipe_security import (build_pipe_security, client_role, command_allowed,
+                            PIPE_REJECT_REMOTE_CLIENTS, FILE_FLAG_FIRST_PIPE_INSTANCE)
 from .detector import FaceDetector
 from .recognizer import Recognizer
 
 log = logging.getLogger(__name__)
 
 
-def _build_sa_everyone() -> win32security.SECURITY_ATTRIBUTES:
-    """Allow LogonUI (SYSTEM) and any logged-in user to connect to the pipe."""
-    sd = win32security.SECURITY_DESCRIPTOR()
-    sd.SetSecurityDescriptorDacl(1, None, 0)  # NULL DACL = allow all (OK for named pipe on localhost)
-    sa = win32security.SECURITY_ATTRIBUTES()
-    sa.SECURITY_DESCRIPTOR = sd
-    sa.bInheritHandle = 0
-    return sa
 
 
 class FaceService:
@@ -227,8 +221,10 @@ class FaceService:
                 self._release_camera()
         return {"ok": True, "config": asdict(new_cfg)}
 
-    def _handle(self, req: dict) -> dict:
+    def _handle(self, req: dict, role: str | None = None) -> dict:
         cmd = req.get("cmd")
+        if not command_allowed(cmd, role):
+            return {"ok": False, "reason": "unauthorized"}
         if cmd == "ping":
             return {"ok": True, "pong": True}
 
@@ -293,21 +289,28 @@ class FaceService:
         return {"ok": False, "reason": "unknown-command"}
 
     def _serve_one(self) -> None:
-        sa = _build_sa_everyone()
+        sa = build_pipe_security()
         handle = win32pipe.CreateNamedPipe(
             PIPE_NAME,
-            win32pipe.PIPE_ACCESS_DUPLEX,
-            win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
-            win32pipe.PIPE_UNLIMITED_INSTANCES,
+            win32pipe.PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
+            win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
+            1,
             65536, 65536, 0, sa,
         )
         try:
-            win32pipe.ConnectNamedPipe(handle, None)
+            try:
+                win32pipe.ConnectNamedPipe(handle, None)
+            except pywintypes.error as exc:
+                if exc.winerror != 535:  # ERROR_PIPE_CONNECTED is a successful race
+                    raise
             _hr, data = win32file.ReadFile(handle, 65536)
             req = json.loads(data.decode("utf-8"))
+            if not isinstance(req, dict):
+                return
+            role = client_role(handle)
             log.info("request cmd=%s", req.get("cmd"))
             try:
-                resp = self._handle(req)
+                resp = self._handle(req, role)
             except Exception as e:
                 log.exception("handler error")
                 resp = {"ok": False, "reason": f"exception: {e}"}

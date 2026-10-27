@@ -58,8 +58,9 @@ tile should appear.
   the DPAPI blob is encrypted with the *user* key, the Python service (which
   runs in the user session) is the one that decrypts it and passes plaintext
   over the pipe — the CP itself never touches DPAPI. The pipe is local-only
-  and uses a NULL DACL, which is fine but you should understand the threat
-  model before deploying widely.
+  and restricts callers to the service user and SYSTEM. Password retrieval
+  requires the real LogonUI in the same session; the CP also validates the
+  installed server identity. See [validation and limitations](../FIXES.md).
 - This is a **skeleton**: no custom tile bitmap, no localisation, no progress
   UI while the service captures frames, and only the single "unlock /
   interactive logon" scenario is implemented. The Microsoft

@@ -8,10 +8,12 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")  # force CPU; no CUDA forkin
 
 import multiprocessing
 
-from .service import main
 
 if __name__ == "__main__":
     # On Windows, freeze_support prevents child processes from re-running main
     # when a module uses multiprocessing.Process without the __main__ guard.
     multiprocessing.freeze_support()
-    main()
+    from face_service.service import main
+    import sys
+    if "--self-test" not in sys.argv:
+        main()

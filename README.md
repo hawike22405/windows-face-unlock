@@ -1,3 +1,5 @@
+> Fork fixes: see [FIXES.md](FIXES.md) for startup fixes, pipe authorization changes, build instructions, and Windows validation requirements. Build new executables; upstream v0.1.0 binaries do not include these changes.
+
 # Windows Face Unlock — face login + presence auto-lock for Windows 10/11
 
 **An open-source Windows face recognition login and walk-away auto-lock —
@@ -42,7 +44,7 @@ when away, presence monitor, walk-away lock, face id for pc.*
 ## Install (end user)
 
 Grab the latest installer from the
-[**Releases page**](https://github.com/caochitam/windows-face-unlock/releases)
+[**Releases page**](https://github.com/hawike22405/windows-face-unlock/releases)
 and double-click it. Requires Windows 10/11 x64, admin rights, any webcam.
 
 - ~350–500 MB installer — it bundles Python, TensorFlow CPU, PyTorch CPU,
@@ -179,9 +181,10 @@ Read these before trusting the CP for daily unlock:
    protects it from other users and from offline disk inspection, but **not**
    from malware running as you. If your attacker model includes that, use a
    smart card or Windows Hello proper.
-2. The pipe currently uses a NULL DACL (any local user can connect). This is
-   acceptable for a personal machine but consider tightening to `SELF` +
-   `SYSTEM` in `_build_sa_everyone()` if multiple accounts share the PC.
+2. The pipe restricts access to the service user and SYSTEM. Password retrieval
+   additionally requires the real Windows LogonUI process in the same session.
+   The Credential Provider verifies the installed service identity before sending
+   requests. See [FIXES.md](FIXES.md) for scope and validation requirements.
 3. Anti-spoofing blocks 2-D photos but **not 3-D masks or deepfake screens**.
 4. The credential provider skeleton uses a hard-coded GUID from this repo —
    **generate your own** before sharing builds.

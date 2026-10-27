@@ -60,13 +60,10 @@ def step_build_cp() -> Path | None:
             cwd=CP_DIR)
         run(["cmake", "--build", "build", "--config", "Release"], cwd=CP_DIR)
     except subprocess.CalledProcessError as e:
-        log(f"CP build failed ({e}); continuing without it. "
-            "Installer will mark CP component as missing.")
-        return None
+        raise RuntimeError("Credential Provider build failed") from e
     dll = build_path / "Release" / "FaceCredentialProvider.dll"
     if not dll.exists():
-        log(f"CP DLL not found at {dll}; skipping")
-        return None
+        raise FileNotFoundError(f"CP DLL not found at {dll}")
     return dll
 
 
@@ -83,6 +80,10 @@ def step_pyinstaller() -> Path:
     out = DIST_DIR / "WindowsFaceUnlock"
     if not out.exists():
         raise RuntimeError(f"expected PyInstaller output at {out}")
+    # Exercise the actual frozen imports, with no camera, credentials or UI.
+    for name in ("face_service.exe", "face_unlock_tray.exe"):
+        subprocess.run([str(out / name), "--self-test"], cwd=str(out),
+                       check=True, timeout=120)
     return out
 
 

@@ -1,4 +1,8 @@
-from .monitor import main
+import multiprocessing
 
 if __name__ == "__main__":
-    main()
+    multiprocessing.freeze_support()
+    from presence_monitor.monitor import main
+    import sys
+    if "--self-test" not in sys.argv:
+        main()
