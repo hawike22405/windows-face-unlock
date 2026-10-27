@@ -35,7 +35,7 @@ from face_service.i18n import t
 
 log = logging.getLogger(__name__)
 
-GITHUB_OWNER = "caochitam"
+GITHUB_OWNER = "hawike22405"
 GITHUB_REPO = "windows-face-unlock"
 RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 USER_AGENT = f"windows-face-unlock/{__version__} (updater)"

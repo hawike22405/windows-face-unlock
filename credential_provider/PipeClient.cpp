@@ -1,7 +1,49 @@
 #include "PipeClient.h"
 #include <vector>
+#include <wtsapi32.h>
+#include <shlobj.h>
 
 namespace FaceUnlock {
+
+// Validate the kernel-reported server BEFORE sending any request. An ordinary
+// user cannot substitute an executable in this administrator-owned directory.
+static bool VerifyServer(HANDLE pipe) {
+    ULONG pid = 0;
+    DWORD session = 0, ownSession = 0;
+    if (!GetNamedPipeServerProcessId(pipe, &pid) ||
+        !ProcessIdToSessionId(pid, &session) ||
+        !ProcessIdToSessionId(GetCurrentProcessId(), &ownSession) ||
+        session != ownSession) return false;
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!process) return false;
+    HANDLE token = nullptr, userToken = nullptr;
+    bool valid = false;
+    do {
+        wchar_t image[32768];
+        DWORD size = ARRAYSIZE(image);
+        if (!QueryFullProcessImageNameW(process, 0, image, &size)) break;
+        PWSTR programFiles = nullptr;
+        if (FAILED(SHGetKnownFolderPath(FOLDERID_ProgramFiles, 0, nullptr, &programFiles))) break;
+        std::wstring expected = std::wstring(programFiles) + L"\\WindowsFaceUnlock\\face_service.exe";
+        CoTaskMemFree(programFiles);
+        if (_wcsicmp(image, expected.c_str()) != 0) break;
+        if (!OpenProcessToken(process, TOKEN_QUERY, &token) ||
+            !WTSQueryUserToken(session, &userToken)) break;
+        DWORD n = 0, m = 0;
+        GetTokenInformation(token, TokenUser, nullptr, 0, &n);
+        GetTokenInformation(userToken, TokenUser, nullptr, 0, &m);
+        if (!n || !m) break;
+        std::vector<BYTE> server(n), user(m);
+        if (!GetTokenInformation(token, TokenUser, server.data(), n, &n) ||
+            !GetTokenInformation(userToken, TokenUser, user.data(), m, &m)) break;
+        valid = EqualSid(reinterpret_cast<TOKEN_USER*>(server.data())->User.Sid,
+                         reinterpret_cast<TOKEN_USER*>(user.data())->User.Sid) != FALSE;
+    } while (false);
+    if (userToken) CloseHandle(userToken);
+    if (token) CloseHandle(token);
+    CloseHandle(process);
+    return valid;
+}
 
 static std::wstring Utf8ToWide(const std::string& s) {
     if (s.empty()) return L"";
@@ -60,6 +102,7 @@ bool PipeCall(const std::wstring& pipeName,
               const std::string& requestJson,
               std::string& response,
               DWORD timeoutMs) {
+    response.clear();
     // Total deadline for the whole transaction.
     const DWORD startTick = GetTickCount();
     auto remaining = [&]() -> DWORD {
@@ -71,8 +114,8 @@ bool PipeCall(const std::wstring& pipeName,
     HANDLE h = INVALID_HANDLE_VALUE;
     while (true) {
         h = CreateFileW(pipeName.c_str(),
-                        GENERIC_READ | GENERIC_WRITE,
-                        0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+                        FILE_READ_DATA | FILE_WRITE_DATA | FILE_WRITE_ATTRIBUTES | SYNCHRONIZE,
+                        0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, nullptr);
         if (h != INVALID_HANDLE_VALUE) break;
         DWORD err = GetLastError();
         if (remaining() == 0) return false;
@@ -85,6 +128,8 @@ bool PipeCall(const std::wstring& pipeName,
             return false;
         }
     }
+
+    if (!VerifyServer(h)) { CloseHandle(h); return false; }
 
     DWORD mode = PIPE_READMODE_MESSAGE;
     SetNamedPipeHandleState(h, &mode, nullptr, nullptr);
