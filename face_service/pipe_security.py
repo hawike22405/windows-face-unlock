@@ -5,6 +5,9 @@ import ctypes
 from contextlib import contextmanager
 from ctypes import wintypes
 import ntpath
+import logging
+
+log = logging.getLogger(__name__)
 
 import win32api
 import win32con
@@ -36,8 +39,8 @@ def build_pipe_security():
     owner = win32security.ConvertStringSidToSid(current_user_sid())
     system = win32security.ConvertStringSidToSid(SYSTEM_SID)
     acl = win32security.ACL()
-    acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x001F01FF  # FILE_ALL_ACCESS
-                            , owner)
+    # FILE_ALL_ACCESS: the service owner must be able to create instances.
+    acl.AddAccessAllowedAce(win32security.ACL_REVISION, 0x001F01FF, owner)
     acl.AddAccessAllowedAce(win32security.ACL_REVISION, PIPE_CLIENT_ACCESS, system)
     sd = win32security.SECURITY_DESCRIPTOR()
     sd.SetSecurityDescriptorDacl(True, acl, False)
@@ -101,6 +104,7 @@ def client_role(handle) -> str | None:
         if session == own_session and ntpath.normcase(_process_image(_client_process_id(handle))) == ntpath.normcase(expected):
             return "credential_provider"
     except Exception:
+        log.warning("pipe client identity validation failed", exc_info=True)
         return None
     return None
 
