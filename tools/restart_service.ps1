@@ -17,5 +17,8 @@ Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" 
 
 Start-Sleep 2
 Start-ScheduledTask -TaskName 'FaceUnlock-Service'
-Start-ScheduledTask -TaskName 'FaceUnlock-Presence'
+$presence = Get-ScheduledTask -TaskName 'FaceUnlock-Presence' -ErrorAction SilentlyContinue
+if ($presence -and $presence.State -ne 'Disabled') {
+    Start-ScheduledTask -TaskName 'FaceUnlock-Presence' -ErrorAction SilentlyContinue
+}
 Write-Host "Done."

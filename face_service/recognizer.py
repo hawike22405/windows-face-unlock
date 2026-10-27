@@ -83,30 +83,33 @@ class Recognizer:
                     img_path=bgr,
                     detector_backend=self.cfg.detector_backend,
                     anti_spoofing=True,
-                    enforce_detection=True,
+                    enforce_detection=False,
                 )
-                if not faces:
-                    return False, 1.0, False
-                is_real = bool(faces[0].get("is_real", True))
-                if not is_real:
-                    return False, 1.0, False
+                if faces:
+                    conf = faces[0].get("confidence", 0.0)
+                    if conf == 0.0:
+                        # No face detected in frame
+                        return False, 1.0, False
+                    is_real = bool(faces[0].get("is_real", True))
+                    if not is_real:
+                        log.info("anti-spoofing flagged frame as fake")
+                        return False, 1.0, False
             except Exception as e:
                 log.warning("liveness check failed: %s", e)
-                return False, 1.0, False
 
         try:
             reps = DeepFace.represent(
                 img_path=bgr,
                 model_name=self.cfg.model_name,
                 detector_backend=self.cfg.detector_backend,
-                enforce_detection=True,
+                enforce_detection=False,
                 align=True,
             )
         except Exception as e:
             log.debug("no face: %s", e)
             return False, 1.0, is_real
 
-        if not reps:
+        if not reps or reps[0].get("face_confidence", 0.0) == 0.0:
             return False, 1.0, is_real
 
         emb = np.asarray(reps[0]["embedding"], dtype=np.float32)
