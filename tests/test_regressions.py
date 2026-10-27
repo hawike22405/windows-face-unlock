@@ -49,7 +49,7 @@ class AuthorizationTests(unittest.TestCase):
         token.__enter__ = Mock(return_value=token)
         token.__exit__ = Mock(return_value=False)
         with patch.object(sec, 'current_user_sid', return_value='owner'), \
-             patch.object(sec.win32pipe, 'ImpersonateNamedPipeClient', create=True), \
+             patch.object(sec.win32security, 'ImpersonateNamedPipeClient', create=True), \
              patch.object(sec.win32security, 'RevertToSelf', create=True) as revert, \
              patch.object(sec.win32security, 'OpenThreadToken', return_value=token, create=True), \
              patch.object(sec.win32security, 'OpenProcessToken', return_value=token, create=True), \

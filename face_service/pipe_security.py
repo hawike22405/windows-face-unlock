@@ -11,7 +11,6 @@ log = logging.getLogger(__name__)
 
 import win32api
 import win32con
-import win32pipe
 import win32security
 
 SYSTEM_SID = "S-1-5-18"
@@ -84,7 +83,7 @@ def client_role(handle) -> str | None:
     """
     try:
         owner = current_user_sid()
-        win32pipe.ImpersonateNamedPipeClient(handle)
+        win32security.ImpersonateNamedPipeClient(handle)
         try:
             with _closing_handle(win32security.OpenThreadToken(win32api.GetCurrentThread(), win32con.TOKEN_QUERY, True)) as token:
                 sid = win32security.ConvertSidToStringSid(
